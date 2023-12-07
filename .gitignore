@@ -1,0 +1,20 @@
+# Dependency directories
+/node_modules
+
+# Output of 'npm pack'
+/*.tgz
+
+# dotenv environment file
+.env
+
+# TypeScript build directory
+/dist
+
+# Visual Studio Code configuration
+.vscode
+
+# Mac OS
+.DS_Store
+
+# Windows
+Thumbs.db
