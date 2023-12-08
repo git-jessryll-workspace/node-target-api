@@ -46,7 +46,8 @@ export const deleteTransactionHandler = async (req, res) => {
 };
 
 export const getTransactionsHandler = async (req, res) => {
-  const transactions = await getTransactions(req.user.userId);
+  const filter_by = req.query?.filter_by || 'MONTH'
+  const transactions = await getTransactions(req.user.userId, filter_by);
   res.status(200).json(transactions);
 };
 

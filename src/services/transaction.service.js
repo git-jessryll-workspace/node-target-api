@@ -1,9 +1,9 @@
 import TransactionModel from "../models/transaction.model.js";
+import { filterBy } from "../utils/filter-dates.util.js";
 import { httpBadRequest } from "../utils/http-error.util.js";
 import mongoose from "mongoose";
 
-const formatDateToUTC = (date) =>
-  new Date(date).toLocaleString("en-US", { timeZone: "UTC" });
+const formatDateToUTC = (date) => new Date(date);
 
 const createTransaction = async (payload) => {
   const { name, type, note, amount, transaction_date, user_id, group_id } =
@@ -35,14 +35,33 @@ const updateTransaction = async (id, payload) => {
     { new: true }
   ).populate("user", "name email status");
 
-  return getTransaction(transaction._id)
+  return getTransaction(transaction._id);
 };
 
 const deleteTransaction = async (id) => {
   return TransactionModel.findByIdAndDelete(id);
 };
 
-const getTransactions = async (user_id) => {
+const getTransactions = async (user_id, filterby = "MONTH") => {
+  const filter = filterBy;
+  let _gte = filter.startOfMonth;
+  let _lte = filter.endOfMonth;
+
+  if (filterby === "TODAY") {
+    _gte = filter.today;
+    _lte = filter.endOfDay;
+  }
+
+  if (filterby === "WEEK") {
+    _gte = filter.startOfWeek;
+    _lte = filter.endOfWeek;
+  }
+
+  if (filterby === "YEAR") {
+    _gte = filter.startOfYear;
+    _lte = filter.endOfYear;
+  }
+
   const transactions = await TransactionModel.aggregate([
     {
       $lookup: {
@@ -70,6 +89,7 @@ const getTransactions = async (user_id) => {
     {
       $match: {
         "user_info._id": new mongoose.Types.ObjectId(user_id),
+        transaction_date: { $gte: _gte, $lte: _lte },
       },
     },
     {
@@ -106,6 +126,7 @@ const getTransactions = async (user_id) => {
     {
       $match: {
         "user_info._id": new mongoose.Types.ObjectId(user_id),
+        transaction_date: { $gte: _gte, $lte: _lte },
       },
     },
     {
@@ -122,7 +143,7 @@ const getTransactions = async (user_id) => {
     },
   ]).exec();
 
-  if (!transactions || transactions.length === 0) {
+  if (!transactions) {
     httpBadRequest("Oops! Something went wrong!");
   }
 
@@ -135,14 +156,8 @@ const getTransactions = async (user_id) => {
     (item) => item._id === "EXPENSE"
   );
   const totalIncome = transactionOverview.find((item) => item._id === "INCOME");
-
   transactionOverview = [
     ...transactionOverview,
-    {
-      _id: "REVENUE",
-      name: "Total Revenue",
-      amount: totalIncome.amount - totalExpense.amount,
-    },
     {
       _id: "TOTAL_COUNT",
       name: "No. of Transaction",
@@ -159,6 +174,26 @@ const getTransactions = async (user_id) => {
       amount: transactions.filter((item) => item.type === "INCOME").length,
     },
   ];
+
+  if (totalExpense && totalIncome) {
+    transactionOverview = [
+      ...transactionOverview,
+      {
+        _id: "REVENUE",
+        name: "Total Revenue",
+        amount: (totalIncome?.amount || 0) - (totalExpense?.amount || 0),
+      },
+    ];
+  } else {
+    transactionOverview = [
+      ...transactionOverview,
+      {
+        _id: "REVENUE",
+        name: "Total Revenue",
+        amount: 0,
+      },
+    ];
+  }
 
   return {
     transactions,
@@ -193,7 +228,7 @@ const getTransaction = async (id) => {
     },
     {
       $match: {
-        "user_info._id": new mongoose.Types.ObjectId(user_id),
+        _id: new mongoose.Types.ObjectId(id),
       },
     },
     {
