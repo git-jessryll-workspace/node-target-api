@@ -42,7 +42,12 @@ app.use(fileUpload({
 }))
 
 // cors middleware
-const corsConfig = cors()
+const corsOptions = {
+    methods: 'GET,HEAD,PUT,PATCH,POST,DELETE',
+    credentials: true,
+    maxAge: 3600, // Set the maxAge value in seconds (1 hour in this example)
+}
+const corsConfig = cors(corsOptions)
 app.use(corsConfig);
 
 app.use('/api/v1', routes);
